@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Vector;
 
 import main.java.memoranda.date.CalendarDate;
+import main.java.memoranda.interfaces.IEventImpl;
 import main.java.memoranda.util.CurrentStorage;
 import main.java.memoranda.util.Util;
 
@@ -102,7 +103,7 @@ public class EventsManager {
 		if (d != null) {
 			Elements els = d.getElement().getChildElements("event");
 			for (int i = 0; i < els.size(); i++)
-				v.add(new EventImpl(els.get(i)));
+				v.add(new IEventImpl(els.get(i)));
 		}
 		Collection r = getRepeatableEventsForDate(date);
 		if (r.size() > 0)
@@ -126,7 +127,7 @@ public class EventsManager {
 		if (d == null)
 			d = createDay(date);
 		d.getElement().appendChild(el);
-		return new EventImpl(el);
+		return new IEventImpl(el);
 	}
 
 	public static Event createRepeatableEvent(
@@ -156,7 +157,7 @@ public class EventsManager {
 		el.addAttribute(new Attribute("workingDays",String.valueOf(workDays)));
 		el.appendChild(text);
 		rep.appendChild(el);
-		return new EventImpl(el);
+		return new IEventImpl(el);
 	}
 
 	public static Collection getRepeatableEvents() {
@@ -166,80 +167,76 @@ public class EventsManager {
 			return v;
 		Elements els = rep.getChildElements("event");
 		for (int i = 0; i < els.size(); i++)
-			v.add(new EventImpl(els.get(i)));
+			v.add(new IEventImpl(els.get(i)));
 		return v;
 	}
-
+	//TASK 2-1 SMELL WITHIN A CLASS
 	public static Collection getRepeatableEventsForDate(CalendarDate date) {
 		Vector reps = (Vector) getRepeatableEvents();
 		Vector v = new Vector();
 		for (int i = 0; i < reps.size(); i++) {
 			Event ev = (Event) reps.get(i);
-			
-			// --- ivanrise
-			// ignore this event if it's a 'only working days' event and today is weekend.
 			if(ev.getWorkingDays() && (date.getCalendar().get(Calendar.DAY_OF_WEEK) == 1 ||
 				date.getCalendar().get(Calendar.DAY_OF_WEEK) == 7)) continue;
-			// ---
-			/*
-			 * /if ( ((date.after(ev.getStartDate())) &&
-			 * (date.before(ev.getEndDate()))) ||
-			 * (date.equals(ev.getStartDate()))
-			 */
-			//System.out.println(date.inPeriod(ev.getStartDate(),
-			// ev.getEndDate()));
-			if (date.inPeriod(ev.getStartDate(), ev.getEndDate())) {
-				if (ev.getRepeat() == REPEAT_DAILY) {
-					int n = date.getCalendar().get(Calendar.DAY_OF_YEAR);
-					int ns =
-						ev.getStartDate().getCalendar().get(
-							Calendar.DAY_OF_YEAR);
-					//System.out.println((n - ns) % ev.getPeriod());
-					if ((n - ns) % ev.getPeriod() == 0)
-						v.add(ev);
-				} else if (ev.getRepeat() == REPEAT_WEEKLY) {
-					if (date.getCalendar().get(Calendar.DAY_OF_WEEK)
-						== ev.getPeriod())
-						v.add(ev);
-				} else if (ev.getRepeat() == REPEAT_MONTHLY) {
-					if (date.getCalendar().get(Calendar.DAY_OF_MONTH)
-						== ev.getPeriod())
-						v.add(ev);
-				} else if (ev.getRepeat() == REPEAT_YEARLY) {
-					int period = ev.getPeriod();
-					//System.out.println(date.getCalendar().get(Calendar.DAY_OF_YEAR));
-					if ((date.getYear() % 4) == 0
-						&& date.getCalendar().get(Calendar.DAY_OF_YEAR) > 60)
-						period++;
-
-					if (date.getCalendar().get(Calendar.DAY_OF_YEAR) == period)
-						v.add(ev);
-				}
-			}
+			repeatableEvents(date, v, ev);
 		}
 		return v;
 	}
+	
+    private static void repeatableEvents(CalendarDate date, Vector v, Event ev) {
+        if (date.inPeriod(ev.getStartDate(), ev.getEndDate())) {
+        	if (ev.getRepeat() == REPEAT_DAILY) {
+        		int n = date.getCalendar().get(Calendar.DAY_OF_YEAR);
+        		int ns =
+        			ev.getStartDate().getCalendar().get(
+        				Calendar.DAY_OF_YEAR);
+        		//System.out.println((n - ns) % ev.getPeriod());
+        		if ((n - ns) % ev.getPeriod() == 0)
+        			v.add(ev);
+        	} else if (ev.getRepeat() == REPEAT_WEEKLY) {
+        		if (date.getCalendar().get(Calendar.DAY_OF_WEEK)
+        			== ev.getPeriod())
+        			v.add(ev);
+        	} else if (ev.getRepeat() == REPEAT_MONTHLY) {
+        		if (date.getCalendar().get(Calendar.DAY_OF_MONTH)
+        			== ev.getPeriod())
+        			v.add(ev);
+        	} else if (ev.getRepeat() == REPEAT_YEARLY) {
+        		int period = ev.getPeriod();
+        		//System.out.println(date.getCalendar().get(Calendar.DAY_OF_YEAR));
+        		if ((date.getYear() % 4) == 0
+        			&& date.getCalendar().get(Calendar.DAY_OF_YEAR) > 60)
+        			period++;
+
+        		if (date.getCalendar().get(Calendar.DAY_OF_YEAR) == period)
+        			v.add(ev);
+        	}
+        }
+    }
 
 	public static Collection getActiveEvents() {
 		return getEventsForDate(CalendarDate.today());
 	}
-
+	//Added the method getAttribute() to lower the complexity of this method.
 	public static Event getEvent(CalendarDate date, int hh, int mm) {
 		Day d = getDay(date);
 		if (d == null)
 			return null;
 		Elements els = d.getElement().getChildElements("event");
-		for (int i = 0; i < els.size(); i++) {
-			Element el = els.get(i);
-			if ((new Integer(el.getAttribute("hour").getValue()).intValue()
-				== hh)
-				&& (new Integer(el.getAttribute("min").getValue()).intValue()
-					== mm))
-				return new EventImpl(el);
-		}
-		return null;
+		return getAttribute(els, hh, mm);
 	}
-
+	//Added new method.
+	public static Event getAttribute(Elements els, int hh, int mm) {
+            for (int i = 0; i < els.size(); i++) {
+                Element el = els.get(i);
+                if ((new Integer(el.getAttribute("hour").getValue()).intValue()
+                        == hh)
+                        && (new Integer(el.getAttribute("min").getValue()).intValue()
+                                == mm))
+                        return new IEventImpl(el);
+            }
+            return null;
+	}
 	public static void removeEvent(CalendarDate date, int hh, int mm) {
 		Day d = getDay(date);
 		if (d == null)
@@ -333,7 +330,7 @@ public class EventsManager {
 		}
 
 	}
-
+	
 	static class Month {
 		Element mElement = null;
 

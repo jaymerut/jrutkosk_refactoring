@@ -10,6 +10,7 @@ package main.java.memoranda;
 import java.util.Collection;
 
 import main.java.memoranda.date.CalendarDate;
+import main.java.memoranda.interfaces.ITaskImpl;
 /**
  * 
  */
@@ -18,8 +19,8 @@ public interface TaskList {
 
 	Project getProject();
     Task getTask(String id);
-
-    Task createTask(CalendarDate startDate, CalendarDate endDate, String text, int priority, long effort, String description, String parentTaskId);
+    //TASK 2-2 SMELL BETWEEN CLASSES <HAS TOO MANY PARAMETERS>
+    Task createTask(ITaskImpl tsk);
 
     void removeTask(Task task);
 
